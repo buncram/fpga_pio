@@ -45,6 +45,7 @@ module machine (
   output reg [31:0] output_pins,
   output reg [31:0] pin_directions,
   output reg [7:0]  irq_flags_out,
+  output reg [7:0]  irq_flags_stb,
   output        pclk
 );
 
@@ -335,6 +336,7 @@ module machine (
     set_out_pins = 0;
     set_out_dirs = 0;
     irq_flags_out = 0;
+    irq_flags_stb = 0;
     dout = 0;
     if (enabled && !delaying) begin
       case (op)
@@ -354,7 +356,13 @@ module machine (
         WAIT: case (source2) // Source
                 0: waiting = input_pins[index] != polarity;
                 1: waiting = input_pins[pins_in_base + index] != polarity;
-                2: waiting = irq_flags_out[irq_index] != polarity;
+                2: begin
+                   waiting = irq_flags_in[irq_index] != polarity;
+                   if (polarity && irq_flags_in[irq_index]) begin
+                      irq_flags_out[irq_index] = 0;  // auto clear when polarity is 1
+                      irq_flags_stb[irq_index] = 1;
+                   end
+                end
               endcase
         IN:   if (auto_push && isr_count >= isr_threshold) begin // Auto push
                  do_push();
@@ -458,9 +466,12 @@ module machine (
                    endcase
               endcase
         IRQ:  begin
-                if (op1[1]) irq_flags_out[irq_index] = 0;    // CLEAR
-                else begin                                   // SET
+                if (op1[1]) begin
+                  irq_flags_out[irq_index] = 0;              // CLEAR
+                  irq_flags_stb[irq_index] = 1;
+                end else begin                               // SET
                   irq_flags_out[irq_index] = 1;
+                  irq_flags_stb[irq_index] = 1;
                   waiting = blocking && irq_flags_in[irq_index] != 0; // If wait set, wait for irq cleared
                 end
               end

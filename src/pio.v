@@ -11,14 +11,32 @@ module pio #(
   input [31:0]      din,
   input [4:0]       index,
   input [3:0]       action,
+  input [7:0]       irq_force_pulse,
+  input [11:0]      irq0_inte,
+  input [11:0]      irq0_intf,
+  input [11:0]      irq1_inte,
+  input [11:0]      irq1_intf,
+  input             sync_bypass,
   input [31:0]      gpio_in,
   output reg [31:0]     gpio_out,
   output reg [31:0]     gpio_dir,
   output reg [31:0] dout,
   output            irq0,
   output            irq1,
+  output [11:0]     irq0_ints,
+  output [11:0]     irq1_ints,
+  output [3:0]      tx_empty,
   output [3:0]      tx_full,
   output [3:0]      rx_empty,
+  output [3:0]      rx_full,
+  output [2:0]      rx_level0,
+  output [2:0]      rx_level1,
+  output [2:0]      rx_level2,
+  output [2:0]      rx_level3,
+  output [2:0]      tx_level0,
+  output [2:0]      tx_level1,
+  output [2:0]      tx_level2,
+  output [2:0]      tx_level3,
   output [3:0]      pclk
 );
 
@@ -82,6 +100,30 @@ module pio #(
   wire [NUM_MACHINES-1:0]  mfull;
   wire [NUM_MACHINES-1:0]  mpush;
   wire [NUM_MACHINES-1:0]  mpull;
+
+  wire [7:0]      irq_flags_out [0:NUM_MACHINES-1];
+  reg [7:0]       irq_flags_out_r [0:NUM_MACHINES-1];
+  reg [7:0]       irq_flags_stb [0:NUM_MACHINES-1];
+  wire [7:0]      irq_flags_stb_edge [0:NUM_MACHINES-1];
+  reg [7:0]       irq_flags_in;
+
+  wire [11:0]     irq_bundle;
+  wire [11:0]     irq0_bank;
+  wire [11:0]     irq1_bank,
+
+  assign tx_empty = mempty;
+  assign rx_full = mfull;
+  assign rx_level0 = rx_level[0];
+  assign rx_level1 = rx_level[1];
+  assign rx_level2 = rx_level[2];
+  assign rx_level3 = rx_level[3];
+  assign tx_level0 = tx_level[0];
+  assign tx_level1 = tx_level[1];
+  assign tx_level2 = tx_level[2];
+  assign tx_level3 = tx_level[3];
+
+  wire [31:0] gpio_in_cleaned;
+  reg  [31:0] gpio_in_sync [1:0];
 
   integer i;
   integer gpio_idx;
@@ -224,7 +266,7 @@ module pio #(
         .restart(restart[j]),
         .mindex(j[1:0]),
         .jmp_pin(jmp_pin[j]),
-        .input_pins(gpio_in),
+        .input_pins(gpio_in_cleaned),
         .output_pins(output_pins[j]),
         .pin_directions(pin_directions[j]),
         .sideset_enable_bit(pins_side_count[j] > 0 ? sideset_enable_bit[j] : 1'b0),
@@ -247,8 +289,9 @@ module pio #(
         .auto_push(auto_push[j]),
         .isr_threshold(isr_threshold[j]),
         .osr_threshold(osr_threshold[j]),
-        .irq_flags_in(8'h0),
+        .irq_flags_in(irq_flags_in),
         .irq_flags_out(irq_flags_out[j]),
+        .irq_flags_stb(irq_flags_stb[j]),
         .pc(pc[j]),
         .din(mdin[j]),
         .dout(mdout[j]),
@@ -282,7 +325,54 @@ module pio #(
         .empty(rx_empty[j]),
         .level(rx_level[j])
       );
+
+      always @(posedge clk) begin
+        if (reset) begin
+          irq_flags_stb[j] <= 0;
+          irq_flags_out_r[j] <= 0;
+        end else begin
+          irq_flags_out_r[j] <= irq_flags_out[j];
+        end
+      end
+      assign irq_flags_stb_edge[j] = !irq_flags_out_r[j] & irq_flags_out[j];
+  endgenerate
+
+  // IRQ state scoreboard
+  generate
+    genvar j;
+    for (j=0; j<8; j=j+1) begin: irq_bits
+      always @(posedge clk) begin
+        if (reset) begin
+          irq_flags_in[j] <= 0;
+        end else begin
+          // machine priority order is m0 < m1 < m2 < m3. Datasheet is vague on this
+          // but inferred from SMn_EXECCTRL docs stating this as a precedence order.
+          if (irq_force_pulse[j]) begin
+            irq_flags_in[j] <= 1;
+          end else if (irq_flags_stb_edge[3][j] != 0) begin
+            irq_flags_in[j] <= irq_flags_out[3][j];
+          end else if (irq_flags_stb_edge[2][j] != 0) begin
+            irq_flags_in[j] <= irq_flags_out[2][j];
+          end else if (irq_flags_stb_edge[1][j] != 0) begin
+            irq_flags_in[j] <= irq_flags_out[1][j];
+          end else if (irq_flags_stb_edge[0][j] != 0) begin
+            irq_flags_in[j] <= irq_flags_out[0][j];
+        end
+      end
     end
   endgenerate
 
+  // reduce IRQ state to just two bits going to the CPU
+  assign irq_bundle = {irq_flags_in[3:0], !tx_full, !rx_empty};
+  assign irq0_ints = (irq_bundle | irq0_intf) & irq0_inte;
+  assign irq1_ints = (irq_bundle | irq1_intf) & irq1_inte;
+  assign irq0 = irq0_ints != 0;
+  assign irq1 = irq1_ints != 0;
+
+  // add metastability hardening, with optional bypass path
+  always @(posedge clk) begin
+    gpio_in_sync[0] <= gpio_in;
+    gpio_in_sync[1] <= gpio_in_sync[0];
+  end
+  assign gpio_in_cleaned = sync_bypass ? gpio_in : gpio_in_sync[1];
 endmodule
