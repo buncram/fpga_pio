@@ -78,7 +78,7 @@ module pio #(
   reg [4:0]   isr_threshold   [0:NUM_MACHINES-1];
   reg [4:0]   osr_threshold   [0:NUM_MACHINES-1];
   reg [3:0]   status_n        [0:NUM_MACHINES-1];
-  reg [4:0]   out_en_sel      [0:NUM_MACHINES-1];  
+  reg [4:0]   out_en_sel      [0:NUM_MACHINES-1];
   reg [4:0]   jmp_pin         [0:NUM_MACHINES-1];
 
   (* mem2reg *) reg [15:0]  curr_instr      [0:NUM_MACHINES-1];
@@ -217,9 +217,9 @@ module pio #(
                  sideset_enable_bit[mindex] <= din[30];
                  exec_stalled[mindex] <= din[31];
                end
-        PULL : begin                              // Pull value from fifo 
-                 pull[mindex] <= 1; 
-                 dout <= pdout[mindex]; 
+        PULL : begin                              // Pull value from fifo
+                 pull[mindex] <= 1;
+                 dout <= pdout[mindex];
                end
         PUSH : push[mindex] <= 1;                 // Push a value to fifo
         GRPS : begin                              // Configure pin groups. PIN_CTRL registers
