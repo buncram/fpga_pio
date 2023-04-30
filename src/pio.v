@@ -109,7 +109,7 @@ module pio #(
 
   wire [11:0]     irq_bundle;
   wire [11:0]     irq0_bank;
-  wire [11:0]     irq1_bank,
+  wire [11:0]     irq1_bank;
 
   assign tx_empty = mempty;
   assign rx_full = mfull;
@@ -335,6 +335,7 @@ module pio #(
         end
       end
       assign irq_flags_stb_edge[j] = !irq_flags_out_r[j] & irq_flags_out[j];
+    end
   endgenerate
 
   // IRQ state scoreboard
@@ -357,6 +358,7 @@ module pio #(
             irq_flags_in[j] <= irq_flags_out[1][j];
           end else if (irq_flags_stb_edge[0][j] != 0) begin
             irq_flags_in[j] <= irq_flags_out[0][j];
+          end
         end
       end
     end

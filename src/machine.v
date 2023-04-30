@@ -36,6 +36,10 @@ module machine (
   input         auto_push,
   input [4:0]   isr_threshold,
   input [4:0]   osr_threshold,
+  input         status_sel,
+  input [3:0]   status_n,
+  input [2:0]   tx_level,
+  input [2:0]   rx_level,
 
   // Output
   output [4:0]  pc,
@@ -46,6 +50,9 @@ module machine (
   output reg [31:0] pin_directions,
   output reg [7:0]  irq_flags_out,
   output reg [7:0]  irq_flags_stb,
+
+  output reg    dbg_txstall,
+  output reg    dbg_rxstall,
   output        pclk
 );
 
@@ -108,7 +115,7 @@ module machine (
   wire [1:0]  mov_op = op2[4:3];
 
   // Miscellaneous signals
-  wire [31:0] null = 0; // NULL source
+  wire [31:0] null_src = 0; // NULL source
   wire [5:0]  isr_count, osr_count;
   wire [31:0] in_pins = input_pins << pins_in_base;
 
@@ -312,7 +319,7 @@ module machine (
           if (pins_out_count > i) pin_directions[pins_out_base+i] <= new_val[i];
     end
   end
-  
+
   // Execute the current instruction
   always @* begin
     jmp  = 0;
@@ -338,10 +345,12 @@ module machine (
     irq_flags_out = 0;
     irq_flags_stb = 0;
     dout = 0;
+    dbg_txstall = 0;
+    dbg_rxstall = 0;
     if (enabled && !delaying) begin
       case (op)
         JMP:  begin
-                new_val[4:0] = address; 
+                new_val[4:0] = address;
                 case (condition) // Condition
                   0: jmp = 1;
                   1: jmp = (x == 0);
@@ -366,19 +375,25 @@ module machine (
               endcase
         IN:   if (auto_push && isr_count >= isr_threshold) begin // Auto push
                  do_push();
-                 set_isr(0); 
-                 waiting = full; 
+                 set_isr(0);
+                 if (full) begin
+                  dbg_rxstall = 1;
+                 end
+                 waiting = full;
                  auto = 1;
               end else case (source) // Source
                 0: do_shift_in(in_pins);
                 1: do_shift_in(x);
                 2: do_shift_in(y);
-                3: do_shift_in(null);
+                3: do_shift_in(null_src);
                 6: do_shift_in(in_shift);
                 7: do_shift_in(out_shift);
               endcase
-        OUT:  if (auto_pull && osr_count >= osr_threshold) begin // Auto push
+        OUT:  if (auto_pull && osr_count >= osr_threshold) begin // Auto pull
                  do_pull();
+                 if (empty) begin
+                  dbg_txstall = 1;
+                 end
                  waiting = empty;
                  auto = 1;
               end else case (destination) // Destination
@@ -410,25 +425,28 @@ module machine (
                   end
                 end
               end
-        MOV:  case (destination)  // Destination TODO Status source
+        MOV:  case (destination)  // Destination
                 0: case (mov_source) // PINS
                      1: pins_out(bit_op(in_pins, mov_op));   // x
                      2: pins_out(bit_op(y, mov_op));         // Y
-                     3: pins_out(bit_op(null, mov_op));      // NULL
+                     3: pins_out(bit_op(null_src, mov_op));  // NULL
+                     5: pins_out(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: pins_out(bit_op(in_shift, mov_op));  // ISR
                      7: pins_out(bit_op(out_shift, mov_op)); // OSR
                    endcase
                 1: case (mov_source) // X
                      0: set_x(bit_op(in_pins, mov_op));      // PINS
                      2: set_x(bit_op(y, mov_op));            // Y
-                     3: set_x(bit_op(null, mov_op));         // NULL
+                     3: set_x(bit_op(null_src, mov_op));     // NULL
+                     5: set_x(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: set_x(bit_op(in_shift, mov_op));     // ISR
                      7: set_x(bit_op(out_shift, mov_op));    // OSR
                    endcase
                 2: case (mov_source) // Y
                      0: set_y(bit_op(in_pins, mov_op));      // PINS
                      1: set_y(bit_op(x, mov_op));            // X
-                     3: set_y(bit_op(null, mov_op));         // NULL
+                     3: set_y(bit_op(null_src, mov_op));     // NULL
+                     5: set_y(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: set_y(bit_op(in_shift, mov_op));     // ISR
                      7: set_y(bit_op(out_shift, mov_op));    // OSR
                    endcase
@@ -436,7 +454,8 @@ module machine (
                      0: set_exec(bit_op(in_pins, mov_op));   // PINS
                      1: set_exec(bit_op(x, mov_op));         // X
                      2: set_exec(bit_op(y, mov_op));         // Y
-                     3: set_exec(bit_op(null, mov_op));      // NULL
+                     3: set_exec(bit_op(null_src, mov_op));  // NULL
+                     5: set_exec(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: set_exec(bit_op(in_shift, mov_op));  // ISR
                      7: set_exec(bit_op(out_shift, mov_op)); // OSR
                    endcase
@@ -444,7 +463,8 @@ module machine (
                      0: set_pc(bit_op(in_pins, mov_op));     // PINS
                      1: set_pc(bit_op(x, mov_op));           // X
                      2: set_pc(bit_op(y, mov_op));           // Y
-                     3: set_pc(bit_op(null, mov_op));        // NULL
+                     3: set_pc(bit_op(null_src, mov_op));    // NULL
+                     5: set_pc(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: set_pc(bit_op(in_shift, mov_op));    // ISR
                      7: set_pc(bit_op(out_shift, mov_op));   // OSR
                    endcase
@@ -452,7 +472,8 @@ module machine (
                      0: set_isr(bit_op(in_pins, mov_op));    // PINS
                      1: set_isr(bit_op(x, mov_op));          // X
                      2: set_isr(bit_op(y, mov_op));          // Y
-                     3: set_isr(bit_op(null, mov_op));       // NULL
+                     3: set_isr(bit_op(null_src, mov_op));   // NULL
+                     5: set_isr(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: set_isr(bit_op(in_shift, mov_op));   // ISR
                      7: set_isr(bit_op(out_shift, mov_op));  // OSR
                    endcase
@@ -460,7 +481,8 @@ module machine (
                      0: set_osr(bit_op(in_pins, mov_op));    // PINS
                      1: set_osr(bit_op(x, mov_op));          // X
                      2: set_osr(bit_op(y, mov_op));          // Y
-                     3: set_osr(bit_op(null, mov_op));       // NULL
+                     3: set_osr(bit_op(null_src, mov_op));   // NULL
+                     5: set_osr(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: set_osr(bit_op(in_shift, mov_op));   // ISR
                      7: set_osr(bit_op(out_shift, mov_op));  // OSR
                    endcase
