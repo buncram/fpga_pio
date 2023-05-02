@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2022 Lawrie Griffiths
 // SPDX-License-Identifier: BSD-2-Clause
 
-`default_nettype none
+// `default_nettype none
 module osr (
   input         clk,
   input         penable,
   input         reset,
+  input         restart,
   input         stalled,
   input [31:0]  din,
   input [4:0]   shift,
@@ -29,8 +30,11 @@ module osr (
   wire [31:0] new_shift = dir ? shift64[63:32] : shift64[31:0];
 
   always @(posedge clk) begin
-    if (reset) begin
-      shift_reg <= 0;
+    if (reset || restart) begin
+      if (reset) begin
+        // shift_reg is *not* affected by restart
+        shift_reg <= 0;
+      end
       count <= 32;  // Empty (read to trigger auto-pull)
     end else if (penable && !stalled) begin
        if (set) begin
