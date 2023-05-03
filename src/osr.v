@@ -23,7 +23,7 @@ module osr (
   // A shift value of 0 means shift 32
   wire [5:0] shift_val = shift == 0 ? 32 : shift;
   // Calculate the 64-bit value of the shift register after a shift
-  wire [63:0] shift64 = dir ? {shift_reg, 32'b0} >> shift_val : {32'b0, shift_reg} << shift_val;
+  wire [63:0] shift64 = dir ? {(set ? din : shift_reg), 32'b0} >> shift_val : {32'b0, (set ? din : shift_reg)} << shift_val;
   // Calculate the right-aligned shifted out value
   wire [31:0] shift_out = dir ? (shift64[31:0] >> (32 - shift_val)) : shift64[63:32];
   // Calculate the new shift register value after a shift
@@ -38,7 +38,11 @@ module osr (
       count <= 32;  // Empty (read to trigger auto-pull)
     end else if (penable && !stalled) begin
        if (set) begin
-         shift_reg <= din;
+        if (do_shift) begin
+          shift_reg <= dir ? shift64[63:32] : shift64[31:0];
+        end else begin
+          shift_reg <= din;
+        end
          count <= 0;
        end else if (do_shift) begin
          shift_reg <= new_shift;
@@ -48,7 +52,7 @@ module osr (
   end
 
   // The output value is the amount shifted out if do_shift ia active otherwise the current shift register
-  assign dout = do_shift ? shift_out : shift_reg;
+  assign dout = do_shift ? shift_out : (set ? din : shift_reg);
   assign shift_count = count;
 
 endmodule

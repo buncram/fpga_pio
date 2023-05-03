@@ -392,7 +392,8 @@ module machine (
                    end
                 end
               endcase
-        IN:   if (auto_push && isr_count >= isr_threshold) begin // Auto push
+        IN:   begin
+              if (auto_push && isr_count >= isr_threshold) begin // Auto push
                  do_push();
                  set_isr(0);
                  if (full) begin
@@ -400,7 +401,8 @@ module machine (
                  end
                  waiting = full;
                  auto = 1;
-              end else case (source) // Source
+              end
+              case (source) // Source
                 0: do_shift_in(in_pins);
                 1: do_shift_in(x);
                 2: do_shift_in(y);
@@ -408,14 +410,17 @@ module machine (
                 6: do_shift_in(in_shift);
                 7: do_shift_in(out_shift);
               endcase
-        OUT:  if (auto_pull && osr_count >= osr_threshold) begin // Auto pull
+              end
+        OUT:  begin
+              if (auto_pull && osr_count >= osr_threshold) begin // Auto pull
                  do_pull();
                  if (empty) begin
                   dbg_txstall = 1;
                  end
                  waiting = empty;
                  auto = 1;
-              end else case (destination) // Destination
+              end
+              case (destination) // Destination
                 0: begin do_out_shift = 1; pins_out(out_shift); end                                    // PINS
                 1: begin do_out_shift = 1; set_x(out_shift); end                                       // X
                 2: begin do_out_shift = 1; set_y(out_shift); end                                       // Y
@@ -424,6 +429,7 @@ module machine (
                 6: begin do_out_shift = 1; set_isr(out_shift); bit_count = op2; end                    // ISR
                 7: begin do_out_shift = 1; set_exec(out_shift[15:0]); end                              // EXEC
               endcase
+              end
         PUSH: if (!op1[2]) begin // PUSH TODO No-op when auto-push?
                 if (!if_full || (isr_count >= isr_threshold)) begin
                   do_push();
@@ -446,7 +452,7 @@ module machine (
               end
         MOV:  case (destination)  // Destination
                 0: case (mov_source) // PINS
-                     1: pins_out(bit_op(in_pins, mov_op));   // x
+                     1: pins_out(bit_op(x, mov_op));         // X
                      2: pins_out(bit_op(y, mov_op));         // Y
                      3: pins_out(bit_op(null_src, mov_op));  // NULL
                      5: pins_out(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
@@ -553,7 +559,7 @@ module machine (
   // PC
   always @(posedge clk) begin
     if (en & penable) begin
-      exec_stalled <= (waiting || auto || exec1 || delaying) && !restart;
+      exec_stalled <= (waiting || /* auto || */ exec1 || delaying) && !restart;
     end
   end
   pc pc_reg (
@@ -562,7 +568,7 @@ module machine (
     .reset(reset),
     .din(new_val[4:0]),
     .jmp(jmp),
-    .stalled((waiting || auto || exec1 || delaying) && !restart), // clear stall in caes of restart
+    .stalled((waiting || /* auto || */ exec1 || delaying) && !restart), // clear stall in caes of restart
     .pend(pend),
     .wrap_target(wrap_target),
     .imm(imm),
@@ -620,7 +626,10 @@ module machine (
     .shift(op2),
     .set(set_shift_out),
     .do_shift(do_out_shift),
-    .din(new_val),
+    // override new_val computation in case of a do_pull() task
+    // TODO: check that this still works for OUT values derived computationally...
+    // I think it's OK because pull only overrides new_val during at autopull event.
+    .din(pull ? din : new_val),
     .dout(out_shift),
     .shift_count(osr_count)
   );
