@@ -326,7 +326,7 @@ module machine (
           if (pins_out_count > i) pin_directions[pins_out_base+i] <= new_val[i];
 
       // sideset should override out (so it is last in order)
-      if (sideset_enabled && !(auto && !waiting)) // TODO Is auto test correct?
+      if (sideset_enabled && !(auto && !waiting))
         if (!side_pindir) begin
           for (i=0;i<5;i=i+1)
             if (pins_side_count > i) output_pins[pins_side_base+i] <= side_set[i];
