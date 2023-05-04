@@ -135,7 +135,7 @@ module machine (
   reg [4:0]   delay_cnt = 0;
 
   // States
-  wire enabled  = exec1 || imm || (en && penable); // Instruction execution enabled
+  wire enabled  = (exec1 && penable) || imm || (en && penable); // Instruction execution enabled
   wire delaying = delay_cnt > 0;
 
   // Function to reverse the order of bits in a word
@@ -299,7 +299,7 @@ module machine (
       end
       delay_cnt <= 0;
     end else if (en & penable) begin
-      exec1 <= exec; // Do execition on next cycle after exec set
+      exec1 <= exec; // Do execution on next cycle after exec set
       exec_instr <= new_val;
       if (delaying) delay_cnt <= delay_cnt - 1;
       else if (!waiting && !exec && delay > 0) delay_cnt <= delay;
