@@ -80,6 +80,7 @@ module machine (
 
   reg [5:0]   bit_count;
   reg [31:0]  new_val;
+  reg [31:0]  pull_val;
 
   reg         exec1 = 0;
   reg [15:0]  exec_instr;
@@ -278,7 +279,7 @@ module machine (
     begin
       pull = 1;
       set_shift_out = 1;
-      new_val = din;
+      pull_val = din;
     end
   endtask
 
@@ -358,6 +359,7 @@ module machine (
     waiting = 0;
     auto = 0;
     new_val = 0;
+    pull_val = 0;
     bit_count = 0;
     set_set_pins = 0;
     set_set_dirs = 0;
@@ -674,7 +676,7 @@ module machine (
     // override new_val computation in case of a do_pull() task
     // TODO: check that this still works for OUT values derived via instructions not autopull...
     // Update: I think it's OK because pull only overrides new_val during at autopull event.
-    .din(pull ? din : new_val),
+    .din(pull ? din : pull_val),
     .dout(out_shift),
     .shift_count_lookahead(osr_count_lookahead),
     .shift_count(osr_count)
