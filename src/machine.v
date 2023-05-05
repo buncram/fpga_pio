@@ -416,33 +416,47 @@ module machine (
                 endcase
               end
         OUT:  begin
-                if (auto_pull && osr_count >= osr_threshold_wide) begin // Auto pull
-                  if (empty) begin
-                    dbg_txstall = 1;
-                  end else begin
-                    do_pull();
-                  end
-                  // OUT can stall in this case
-                  waiting = 1;
-                  auto = 1;
-                end else begin
-                  // Look-ahead on OUT for the next value, if the FIFO is not empty...
-                  if (auto_pull && osr_count_lookahead >= osr_threshold_wide) begin
-                    if (empty) begin
-                      dbg_txstall = 1;
-                    end else begin
-                      do_pull();
-                    end
-                  end
+                if (!auto_pull) begin
+                  // if no auto-pull, OUT always runs; no stalling, no pulling
                   case (destination) // Destination
                     0: begin do_out_shift = 1; pins_out(out_shift); end                                    // PINS
                     1: begin do_out_shift = 1; set_x(out_shift); end                                       // X
                     2: begin do_out_shift = 1; set_y(out_shift); end                                       // Y
+                    3: begin do_out_shift = 1; end                                                         // NULL
                     4: begin do_out_shift = 1; dirs_out(out_shift); end                                    // PINDIRS
                     5: begin do_out_shift = 1; set_pc(out_shift);          ; end                           // PC
                     6: begin do_out_shift = 1; set_isr(out_shift); bit_count = op2; end                    // ISR
                     7: begin do_out_shift = 1; set_exec(out_shift[15:0]); end                              // EXEC
                   endcase
+                end else begin
+                  // auto-pull case
+                  if (osr_count >= osr_threshold_wide) begin
+                    if (empty) begin
+                      dbg_txstall = 1;
+                    end else begin
+                      do_pull();
+                    end
+                    // OUT can stall in this case
+                    waiting = 1;
+                    auto = 1;
+                  end else begin
+                    // Look-ahead on OUT for the next value, if the FIFO is not empty...
+                    if (osr_count_lookahead >= osr_threshold_wide) begin
+                      if (!empty) begin
+                        do_pull();
+                      end
+                    end
+                    case (destination) // Destination
+                      0: begin do_out_shift = 1; pins_out(out_shift); end                                    // PINS
+                      1: begin do_out_shift = 1; set_x(out_shift); end                                       // X
+                      2: begin do_out_shift = 1; set_y(out_shift); end                                       // Y
+                      3: begin do_out_shift = 1; end                                                         // NULL
+                      4: begin do_out_shift = 1; dirs_out(out_shift); end                                    // PINDIRS
+                      5: begin do_out_shift = 1; set_pc(out_shift);          ; end                           // PC
+                      6: begin do_out_shift = 1; set_isr(out_shift); bit_count = op2; end                    // ISR
+                      7: begin do_out_shift = 1; set_exec(out_shift[15:0]); end                              // EXEC
+                    endcase
+                  end
                 end
               end
         PUSH: if (!op1[2]) begin
