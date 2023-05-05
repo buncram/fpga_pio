@@ -85,7 +85,7 @@ module machine (
   reg [15:0]  exec_instr;
 
   // Expand OSR explicitly to full width of osr_threshold
-  wire [5:0]  osr_threshold_wide = {1'b0, osr_threshold}
+  wire [5:0]  osr_threshold_wide = {1'b0, osr_threshold};
 
   // Divided clock enable signal
   wire        penable;
