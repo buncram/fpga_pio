@@ -126,8 +126,8 @@ module machine (
   wire [5:0]  isr_count, osr_count, osr_count_lookahead;
   // Input pins rotate with pins_in_base
   wire [63:0] in_pins64 = {input_pins, input_pins};
-  wire [63:0] in_pins64_rot = in_pins64 << pins_in_base;
-  wire [31:0] in_pins = in_pins64_rot[63:32];
+  wire [63:0] in_pins64_rot = in_pins64 >> pins_in_base;
+  wire [31:0] in_pins = in_pins64_rot[31:0];
 
   // Values for use in gtkwave during simulation
   wire        pin0 = output_pins[0];
@@ -381,7 +381,7 @@ module machine (
                   3: jmp = (y == 0);
                   4: begin jmp = (y != 0); decy = (y != 0); end
                   5: jmp = (x != y);
-                  6: jmp = jmp_pin;
+                  6: jmp = ((input_pins >> jmp_pin) & 1);
                   7: jmp = (osr_count < osr_threshold_wide);
                 endcase
               end
