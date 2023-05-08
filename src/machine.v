@@ -351,13 +351,13 @@ module machine (
             output_pins_stb[pins_set_base+i] <= 1;
           end
       if (set_out_pins)
-        for (i=0;i<5;i=i+1)
+        for (i=0;i<32;i=i+1)
           if (pins_out_count > i) begin
             output_pins[pins_out_base+i] <= new_val[i];
             output_pins_stb[pins_out_base+i] <= 1;
           end
       if (set_out_dirs)
-        for (i=0;i<5;i=i+1)
+        for (i=0;i<32;i=i+1)
           if (pins_out_count > i) begin
             pin_directions[pins_out_base+i] <= new_val[i];
             output_pins_stb[pins_out_base+i] <= 1;
