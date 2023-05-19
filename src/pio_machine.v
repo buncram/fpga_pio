@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 // `default_nettype none
-module machine (
+module pio_machine (
   input         clk,
   input         reset,
   input         en,
@@ -653,7 +653,7 @@ module machine (
   end
 
   // Clock divider
-  divider clk_divider (
+  pio_divider clk_divider (
     .clk(clk),
     .reset(reset | clkdiv_restart),
     .div_int(div_int),
@@ -662,7 +662,7 @@ module machine (
   );
 
   // Instruction decoder
-  decoder decode (
+  pio_decoder decode (
     .instr(exec1 ? exec_instr : instr),
     .sideset_bits(pins_side_count),
     .sideset_enable_bit(sideset_enable_bit),
@@ -682,7 +682,7 @@ module machine (
       exec_stalled <= imm_until_resolved;
     end
   end
-  pc pc_reg (
+  pio_pc pc_reg (
     .clk(clk),
     .penable(en & penable),
     .reset(reset),
@@ -696,7 +696,7 @@ module machine (
   );
 
   // X
-  scratch scratch_x (
+  pio_scratch scratch_x (
     .clk(clk),
     .penable(enabled),
     .reset(reset),
@@ -708,7 +708,7 @@ module machine (
   );
 
   // Y
-  scratch scratch_y (
+  pio_scratch scratch_y (
     .clk(clk),
     .penable(enabled),
     .reset(reset),
@@ -720,7 +720,7 @@ module machine (
   );
 
   // ISR
-  isr shift_in (
+  pio_isr shift_in (
     .clk(clk),
     .penable(enabled),
     .reset(reset | restart),
@@ -737,7 +737,7 @@ module machine (
   );
 
   // OSR
-  osr shift_out (
+  pio_osr shift_out (
     .clk(clk),
     .penable(enabled),
     .reset(reset),

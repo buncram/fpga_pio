@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 // `default_nettype none
-module osr (
+module pio_osr (
   input         clk,
   input         penable,
   input         reset,

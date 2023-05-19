@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 // `default_nettype none
-module divider (
+module pio_divider (
   input         clk,
   input         reset,
   input [15:0]  div_int,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 // `default_nettype none
-module decoder (
+module pio_decoder (
   input [15:0] instr,
   input [2:0]  sideset_bits,  // inclusive of the enable bit
   input        sideset_enable_bit,

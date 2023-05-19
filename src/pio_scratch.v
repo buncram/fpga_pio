@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 // `default_nettype none
-module scratch (
+module pio_scratch (
   input         clk,
   input         penable,
   input         reset,

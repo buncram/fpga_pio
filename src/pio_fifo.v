@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 // `default_nettype none
-module fifo (
+module pio_fifo (
   input             clk,
   input             reset,
   input             push,
