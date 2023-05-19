@@ -8,9 +8,12 @@ module fifo (
   input             push,
   input             pull,
   input [31:0]      din,
+  input [1:0]       margin,
   output [31:0]     dout,
   output            empty,
   output            full,
+  output            margin_empty,
+  output            margin_full,
   output [2:0]      level
 );
 
@@ -41,7 +44,9 @@ module fifo (
   end
 
   assign empty = count == 0;
+  assign margin_empty = (count <= {1'd0, margin});
   assign full = count == 4;
+  assign margin_full = (count >= (3'd4 - {1'd0, margin}));
   assign dout = arr[first];
   assign level = count;
 
