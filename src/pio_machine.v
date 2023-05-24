@@ -500,6 +500,9 @@ module pio_machine (
                     // OUT can stall in this case
                     waiting = 1;
                     auto = 1;
+                    if (destination == 7) begin // happens when we're stalled on an OUT EXEC that is running an OUT EXEC!
+                      set_exec(exec_instr); // keep recirculating the stuck exec instruction
+                    end
                   end else begin
                     // Look-ahead on OUT for the next value, if the FIFO is not empty...
                     if (osr_count_lookahead >= osr_threshold_wide) begin
