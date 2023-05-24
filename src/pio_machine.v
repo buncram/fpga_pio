@@ -691,7 +691,13 @@ module pio_machine (
     .reset(reset),
     .din(new_pc[4:0]),
     .jmp(jmp),
-    .stalled(stalling),
+    .stalled(stalling
+       // load the PC value if it's an OUT or MOV with PC as a destination executed in an 'exec' context (which pull stall high)
+       && ! // not the case that we should stall (i.e., ignore the `jmp` input) when...
+       (exec1 // we are in an exec context
+       && (op == OUT || op == MOV) // and the instruction is either an OUT or MOV
+       && (destination == 5)) // with a destination of the PC
+    ),
     .pend(pend),
     .wrap_target(wrap_target),
     .imm(imm_until_resolved),
