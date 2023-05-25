@@ -340,6 +340,12 @@ module pio_machine (
   assign instr = imm_until_resolved ? imm_instr :  curr_instr;
 
   integer i;
+  wire [2:0] pins_side_count_real;
+  // trim out the enable bit for computing the number of bits to apply on side-set
+  assign pins_side_count_real =
+    sideset_enable_bit ?
+      (pins_side_count > 0) ? pins_side_count - 1 : 0
+      : pins_side_count;
 
   always @(posedge clk) begin
     if (reset || restart) begin
@@ -381,13 +387,13 @@ module pio_machine (
       if (sideset_enabled) begin
         if (!side_pindir) begin
           for (i=0;i<5;i=i+1)
-            if (pins_side_count > i) begin
+            if (pins_side_count_real > i) begin
               output_pins[pins_side_base+i] <= side_set[i];
               output_pins_stb[pins_side_base+i] <= 1;
             end
         end else begin
           for (i=0;i<5;i=i+1)
-            if (pins_side_count > i) begin
+            if (pins_side_count_real > i) begin
               pin_directions[pins_side_base+i] <= side_set[i];
               output_pins_stb[pins_side_base+i] <= 1;
             end
