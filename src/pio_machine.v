@@ -78,6 +78,7 @@ module pio_machine (
   reg         set_side_dirs;
   reg         exec;
   reg         waiting;
+  reg         waiting1;
   reg         auto;
 
   reg [5:0]   bit_count;
@@ -93,7 +94,7 @@ module pio_machine (
   reg [31:0]  isr_val;
   reg [31:0]  pull_val;
 
-  reg         exec1 = 0;
+  reg         exec1;
   reg [15:0]  exec_instr;
 
   // Expand OSR explicitly to full width of osr_threshold, and handle 0 encoding 32
@@ -312,8 +313,10 @@ module pio_machine (
     if (reset || restart) begin
       delay_cnt <= 0;
       exec1 <= 0;
+      waiting1 <= 0;
     end else if (en & penable) begin
       exec1 <= exec; // Do execution on next cycle after exec set
+      waiting1 <= waiting;
       exec_instr <= new_exec;
       if (delaying) delay_cnt <= delay_cnt - 1;
       else if (!waiting && !exec && delay > 0) delay_cnt <= delay;
@@ -449,10 +452,10 @@ module pio_machine (
                 1: waiting = input_pins[pins_in_base + index] != polarity;
                 2: begin
                   // clear wait on irq in case of restart assert
-                   waiting = (irq_flags_in[irq_index] != polarity) & !restart;
+                   waiting = (irq_flags_in[irq_index] != polarity) && !restart;
                    if (polarity && irq_flags_in[irq_index]) begin
                       irq_flags_out[irq_index] = 0;  // auto clear when polarity is 1
-                      irq_flags_stb[irq_index] = 1;
+                      irq_flags_stb[irq_index] = penable || imm;
                    end
                 end
               endcase
@@ -621,10 +624,10 @@ module pio_machine (
         IRQ:  begin
                 if (op1[1]) begin
                   irq_flags_out[irq_index] = 0;              // CLEAR
-                  irq_flags_stb[irq_index] = 1;
+                  irq_flags_stb[irq_index] = penable || imm;
                 end else begin                               // SET
                   irq_flags_out[irq_index] = 1;
-                  irq_flags_stb[irq_index] = 1;
+                  irq_flags_stb[irq_index] = penable || imm;
                   waiting = !restart && blocking && // stop waiting if restart is specified
                     (!irq_waiting || imm_until_resolved) && (irq_flags_out[irq_index] != 0) || // if not currently waiting or we're doing an imm IRQ, consult the flags_out, because flags_in takes a cycle to set
                     irq_waiting && (irq_flags_in[irq_index] != 0); // If wait set, wait for irq cleared
@@ -679,7 +682,19 @@ module pio_machine (
 
   // Synchronous modules
   // PC
-  assign stalling = (waiting || (exec1 & !restart) || delaying);
+  assign stalling = (
+    waiting
+    || delaying
+    || (
+      exec1 && !restart
+      && !( // exec-of-exec case that side-effects the PC: not the case that....
+           (((op == OUT || op == MOV) // the instruction is either an OUT or MOV
+            && (destination == 5)) // with a destination of the PC
+            || (op == JMP) // or the instruction is a JMP
+           ) && !waiting1  // and the decoded instruction is actually valid (not waiting for the out exec to arrive)
+          )
+      )
+    );
   always @(posedge clk) begin
     if (en & penable) begin
       exec_stalled <= imm_until_resolved;
@@ -691,13 +706,7 @@ module pio_machine (
     .reset(reset),
     .din(new_pc[4:0]),
     .jmp(jmp),
-    .stalled(stalling
-       // load the PC value if it's an OUT or MOV with PC as a destination executed in an 'exec' context (which pull stall high)
-       && ! // not the case that we should stall (i.e., ignore the `jmp` input) when...
-       (exec1 // we are in an exec context
-       && (op == OUT || op == MOV) // and the instruction is either an OUT or MOV
-       && (destination == 5)) // with a destination of the PC
-    ),
+    .stalled(stalling),
     .pend(pend),
     .wrap_target(wrap_target),
     .imm(imm_until_resolved),
