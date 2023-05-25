@@ -361,26 +361,26 @@ module pio_machine (
       if (set_set_pins)
         for (i=0;i<5;i=i+1)
           if (pins_set_count > i) begin
-            output_pins[pins_set_base+i] <= new_set_pins[i];
-            output_pins_stb[pins_set_base+i] <= 1;
+            output_pins[(pins_set_base+i) & 5'h1f] <= new_set_pins[i];
+            output_pins_stb[(pins_set_base+i) & 5'h1f] <= 1;
           end
       if (set_set_dirs)
         for (i=0;i<5;i=i+1)
           if (pins_set_count > i) begin
-            pin_directions[pins_set_base+i] <= new_set_dirs[i];
-            output_pins_stb[pins_set_base+i] <= 1;
+            pin_directions[(pins_set_base+i) & 5'h1f] <= new_set_dirs[i];
+            output_pins_stb[(pins_set_base+i) & 5'h1f] <= 1;
           end
       if (set_out_pins)
         for (i=0;i<32;i=i+1)
           if (pins_out_count > i) begin
-            output_pins[pins_out_base+i] <= new_out_pins[i];
-            output_pins_stb[pins_out_base+i] <= 1;
+            output_pins[(pins_out_base+i) & 5'h1f] <= new_out_pins[i];
+            output_pins_stb[(pins_out_base+i) & 5'h1f] <= 1;
           end
       if (set_out_dirs)
         for (i=0;i<32;i=i+1)
           if (pins_out_count > i) begin
-            pin_directions[pins_out_base+i] <= new_out_dirs[i];
-            output_pins_stb[pins_out_base+i] <= 1;
+            pin_directions[(pins_out_base+i) & 5'h1f] <= new_out_dirs[i];
+            output_pins_stb[(pins_out_base+i) & 5'h1f] <= 1;
           end
 
       // sideset should override out (so it is last in order)
@@ -388,14 +388,14 @@ module pio_machine (
         if (!side_pindir) begin
           for (i=0;i<5;i=i+1)
             if (pins_side_count_real > i) begin
-              output_pins[pins_side_base+i] <= side_set[i];
-              output_pins_stb[pins_side_base+i] <= 1;
+              output_pins[(pins_side_base+i) & 5'h1f] <= side_set[i];
+              output_pins_stb[(pins_side_base+i) & 5'h1f] <= 1;
             end
         end else begin
           for (i=0;i<5;i=i+1)
             if (pins_side_count_real > i) begin
-              pin_directions[pins_side_base+i] <= side_set[i];
-              output_pins_stb[pins_side_base+i] <= 1;
+              pin_directions[(pins_side_base+i) & 5'h1f] <= side_set[i];
+              output_pins_stb[(pins_side_base+i) & 5'h1f] <= 1;
             end
         end
       end
@@ -455,7 +455,7 @@ module pio_machine (
               end
         WAIT: case (source2) // Source
                 0: waiting = input_pins[index] != polarity;
-                1: waiting = input_pins[pins_in_base + index] != polarity;
+                1: waiting = input_pins[(pins_in_base + index) & 5'h1f] != polarity;
                 2: begin
                   // clear wait on irq in case of restart assert
                    waiting = (irq_flags_in[irq_index] != polarity) && !restart;
@@ -675,7 +675,7 @@ module pio_machine (
 
   // Instruction decoder
   pio_decoder decode (
-    .instr(exec1 ? exec_instr : instr),
+    .instr(exec1 & !imm_until_resolved ? exec_instr : instr),
     .sideset_bits(pins_side_count),
     .sideset_enable_bit(sideset_enable_bit),
     .sideset_enabled(sideset_enabled),
