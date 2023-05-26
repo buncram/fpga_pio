@@ -43,6 +43,8 @@ module pio_machine (
   input [3:0]   status_n,
   input [2:0]   tx_level,
   input [2:0]   rx_level,
+  input [3:0]   tx_level_joined,
+  input [3:0]   rx_level_joined,
 
   // Output
   output [4:0]  pc,
@@ -578,7 +580,7 @@ module pio_machine (
                      1: pins_out(bit_op(x, mov_op));         // X
                      2: pins_out(bit_op(y, mov_op));         // Y
                      3: pins_out(bit_op(null_src, mov_op));  // NULL
-                     5: pins_out(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
+                     5: pins_out(status_sel ? (rx_level_joined < status_n ? 32'hffffffff : 32'h0) : (tx_level_joined < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: pins_out(bit_op(in_shift, mov_op));  // ISR
                      7: pins_out(bit_op(out_shift, mov_op)); // OSR
                    endcase
@@ -586,7 +588,7 @@ module pio_machine (
                      0: set_x(bit_op(in_pins, mov_op));      // PINS
                      2: set_x(bit_op(y, mov_op));            // Y
                      3: set_x(bit_op(null_src, mov_op));     // NULL
-                     5: set_x(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
+                     5: set_x(status_sel ? (rx_level_joined < status_n ? 32'hffffffff : 32'h0) : (tx_level_joined < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: set_x(bit_op(in_shift, mov_op));     // ISR
                      7: set_x(bit_op(out_shift, mov_op));    // OSR
                    endcase
@@ -594,7 +596,7 @@ module pio_machine (
                      0: set_y(bit_op(in_pins, mov_op));      // PINS
                      1: set_y(bit_op(x, mov_op));            // X
                      3: set_y(bit_op(null_src, mov_op));     // NULL
-                     5: set_y(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
+                     5: set_y(status_sel ? (rx_level_joined < status_n ? 32'hffffffff : 32'h0) : (tx_level_joined < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: set_y(bit_op(in_shift, mov_op));     // ISR
                      7: set_y(bit_op(out_shift, mov_op));    // OSR
                    endcase
@@ -603,7 +605,7 @@ module pio_machine (
                      1: set_exec(bit_op(x, mov_op));         // X
                      2: set_exec(bit_op(y, mov_op));         // Y
                      3: set_exec(bit_op(null_src, mov_op));  // NULL
-                     5: set_exec(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
+                     5: set_exec(status_sel ? (rx_level_joined < status_n ? 32'hffffffff : 32'h0) : (tx_level_joined < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: set_exec(bit_op(in_shift, mov_op));  // ISR
                      7: set_exec(bit_op(out_shift, mov_op)); // OSR
                    endcase
@@ -612,7 +614,7 @@ module pio_machine (
                      1: set_pc(bit_op(x, mov_op));           // X
                      2: set_pc(bit_op(y, mov_op));           // Y
                      3: set_pc(bit_op(null_src, mov_op));    // NULL
-                     5: set_pc(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
+                     5: set_pc(status_sel ? (rx_level_joined < status_n ? 32'hffffffff : 32'h0) : (tx_level_joined < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: set_pc(bit_op(in_shift, mov_op));    // ISR
                      7: set_pc(bit_op(out_shift, mov_op));   // OSR
                    endcase
@@ -621,7 +623,7 @@ module pio_machine (
                      1: set_isr(bit_op(x, mov_op));          // X
                      2: set_isr(bit_op(y, mov_op));          // Y
                      3: set_isr(bit_op(null_src, mov_op));   // NULL
-                     5: set_isr(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
+                     5: set_isr(status_sel ? (rx_level_joined < status_n ? 32'hffffffff : 32'h0) : (tx_level_joined < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: set_isr(bit_op(in_shift, mov_op));   // ISR
                      7: set_isr(bit_op(out_shift, mov_op));  // OSR
                    endcase
@@ -630,7 +632,7 @@ module pio_machine (
                      1: set_osr(bit_op(x, mov_op));          // X
                      2: set_osr(bit_op(y, mov_op));          // Y
                      3: set_osr(bit_op(null_src, mov_op));   // NULL
-                     5: set_osr(status_sel ? (rx_level < status_n ? 32'hffffffff : 32'h0) : (tx_level < status_n ? 32'hffffffff : 32'h0)); // STATUS
+                     5: set_osr(status_sel ? (rx_level_joined < status_n ? 32'hffffffff : 32'h0) : (tx_level_joined < status_n ? 32'hffffffff : 32'h0)); // STATUS
                      6: set_osr(bit_op(in_shift, mov_op));   // ISR
                      7: set_osr(bit_op(out_shift, mov_op));  // OSR
                    endcase
@@ -641,7 +643,7 @@ module pio_machine (
                   irq_flags_stb[irq_index] = penable || imm;
                 end else begin                               // SET
                   irq_flags_out[irq_index] = 1;
-                  irq_flags_stb[irq_index] = penable || imm;
+                  irq_flags_stb[irq_index] = (penable || imm) && !irq_waiting;
                   waiting = !restart && blocking && // stop waiting if restart is specified
                     (!irq_waiting || imm_until_resolved) && (irq_flags_out[irq_index] != 0) || // if not currently waiting or we're doing an imm IRQ, consult the flags_out, because flags_in takes a cycle to set
                     irq_waiting && (irq_flags_in[irq_index] != 0); // If wait set, wait for irq cleared
