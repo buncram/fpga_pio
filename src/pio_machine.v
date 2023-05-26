@@ -438,6 +438,13 @@ module pio_machine (
     dbg_txstall = 0;
     dbg_rxstall = 0;
     if (enabled && !delaying) begin
+      // Look-ahead PULL on OUT for the next value, if the FIFO is not empty...
+      if (auto_pull && (osr_count_lookahead >= osr_threshold_wide)) begin
+        if (!empty) begin
+          do_pull();
+        end
+      end
+
       irq_waiting_next = 0;
       case (op)
         JMP:  begin
@@ -513,12 +520,6 @@ module pio_machine (
                       set_exec(exec_instr); // keep recirculating the stuck exec instruction
                     end
                   end else begin
-                    // Look-ahead on OUT for the next value, if the FIFO is not empty...
-                    if (osr_count_lookahead >= osr_threshold_wide) begin
-                      if (!empty) begin
-                        do_pull();
-                      end
-                    end
                     case (destination) // Destination
                       0: begin do_out_shift = 1; pins_out(out_shift); end                                    // PINS
                       1: begin do_out_shift = 1; set_x(out_shift); end                                       // X
