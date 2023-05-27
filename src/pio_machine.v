@@ -235,7 +235,7 @@ module pio_machine (
   );
     begin
       set_shift_out = 1;
-      // new_val = val; // now hard-wired to din or pull value intead of using tasks
+      pull_val = val;
     end
   endtask
 
@@ -284,6 +284,7 @@ module pio_machine (
     end
   endtask
 
+  // this must be paired with a set_isr() task otherwise what are you pushing?
   task do_push();
     begin
       push = 1;
@@ -554,6 +555,9 @@ module pio_machine (
                     end
                     waiting = blocking && full;
                   end else begin
+                    if (full) begin
+                      dbg_rxstall = 1;
+                    end
                     // disregard the full signal, just do the push and maybe lose data
                     do_push();
                     set_isr(0);
@@ -659,18 +663,6 @@ module pio_machine (
                 4: dirs_set(data);                           // PINDIRS
               endcase
       endcase
-      // an autopull can happen on any cycle that's not an OUT, if it's not blocking.
-      // also don't autopull during exec1 or imm
-      if (op != OUT && !exec1 && !imm_until_resolved) begin
-        // question: should we be doing a "lookahead" in the case that the current instruction set the osr_count to 0?
-        // I think no, because the only way osr_count changes is do_shift is asserted, and that only happens in
-        // the op == OUT state. And this consideration only happens in the op != OUT state....
-        if (osr_count >= osr_threshold_wide) begin // Auto pull
-          if (!empty) begin
-            do_pull();
-          end
-        end
-      end
     end
   end
 
