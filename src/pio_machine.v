@@ -142,7 +142,7 @@ module pio_machine (
 
   // Miscellaneous signals
   wire [31:0] null_src = 0; // NULL source
-  wire [5:0]  isr_count, osr_count, osr_count_lookahead;
+  wire [5:0]  isr_count, isr_count_autopush, osr_count, osr_count_lookahead;
 
   // Input pins rotate with pins_in_base
   wire [63:0] in_pins64 = {input_pins, input_pins};
@@ -477,7 +477,7 @@ module pio_machine (
                 end
               endcase
         IN:   begin
-                if (auto_push && isr_count >= isr_threshold_wide) begin // Auto push
+                if (auto_push && isr_count_autopush >= isr_threshold_wide) begin // Auto push
                   if (full) begin
                     dbg_rxstall = 1;
                   end else begin
@@ -581,6 +581,7 @@ module pio_machine (
               end
         MOV:  case (destination)  // Destination
                 0: case (mov_source) // PINS
+                     0: pins_out(bit_op(in_pins, mov_op));   // PINS
                      1: pins_out(bit_op(x, mov_op));         // X
                      2: pins_out(bit_op(y, mov_op));         // Y
                      3: pins_out(bit_op(null_src, mov_op));  // NULL
@@ -759,6 +760,7 @@ module pio_machine (
     .dout(in_shift),
     .push_dout(dout),
     .bit_count(bit_count),
+    .shift_count_autopush(isr_count_autopush),
     .shift_count(isr_count)
   );
 
